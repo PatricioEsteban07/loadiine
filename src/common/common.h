@@ -5,7 +5,8 @@
 #define IS_USING_MII_MAKER      1
 
 /* Loadiine common paths */
-#define CAFE_OS_SD_PATH         "/vol/external01"
+
+#define CAFE_OS_SD_PATH        "/vol/external01"
 #define SD_LOADIINE_PATH        "/wiiu"
 #define GAMES_PATH               "/games"
 #define SAVES_PATH               "/saves"
@@ -13,11 +14,12 @@
 #define SD_SAVES_PATH            SD_LOADIINE_PATH SAVES_PATH
 #define CONTENT_PATH            "/content"
 #define RPX_RPL_PATH            "/code"
-
+#define CHEMIN          			"/vol/external01/wiiu/games"
+#define IMGTGA          			"icone.tga"
 /* Loadiine Modes */
 #define LOADIINE_MODE_SMASH_BROS    0
 #define LOADIINE_MODE_MII_MAKER     1
-
+#define MOIN "-1"
 /* DATA_ADDRESS : address where flags start */
 #define DATA_ADDR               ((void *)0x011e3800)
 #define BOUNCE_FLAG_ADDR        (*(volatile unsigned int*)(DATA_ADDR - 0x04))      // bounce flag
@@ -70,6 +72,7 @@ typedef struct _s_rpx_rpl
     unsigned char      is_rpx;
     char               name[0];
 } s_rpx_rpl;
+
 
 /* Log struct */
 //typedef struct _loader_debug_t

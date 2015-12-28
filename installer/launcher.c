@@ -1,10 +1,10 @@
 #include "launcher.h"
 #include "elf_abi.h"
 #include "../src/common/common.h"
-#include "../../libwiiu/src/coreinit.h"
-#include "../../libwiiu/src/vpad.h"
-#include "../../libwiiu/src/socket.h"
-
+#include "../libwiiu/src/coreinit.h"
+#include "../libwiiu/src/vpad.h"
+#include "../libwiiu/src/socket.h"
+#include "../src/utils/utils.h"
 #if VER == 532
     #define CODE_RW_BASE_OFFSET     0xBC000000
     #define DATA_RW_BASE_OFFSET     0
@@ -105,7 +105,7 @@ void _start()
     /* Make sure the kernel exploit has been run */
     if (OSEffectiveToPhysical((void *)0xa0000000) != (void *)0x10000000)
     {
-        OSFatal("No ksploit.");
+        OSFatal("ksploit non installer.");
     }
     else
     {
@@ -171,13 +171,13 @@ void _start()
         /* Create the thread variable */
         OSThread *thread = (OSThread *) private_data.MEMAllocFromDefaultHeapEx(sizeof(OSThread), 8);
         if(!thread || !stack)
-            OSFatal("Thread memory allocation failed.");
+            OSFatal("Allocation de memoire de thread echouer.");
 
         // the thread stack is too small on current thread, switch to an own created thread
         // create a detached thread with priority 0 and use core 1
         int ret = OSCreateThread(thread, curl_thread_callback, 1, (void*)&private_data, (unsigned int)stack+0x2000, 0x2000, 0, 0x1A);
         if (ret == 0)
-            OSFatal("Failed to create thread");
+            OSFatal("Impossible de creer le thread");
 
         /* Schedule it for execution */
         OSResumeThread(thread);
@@ -300,6 +300,7 @@ static int show_ip_selection_screen(unsigned int coreinit_handle, unsigned int *
     u_serv_ip ip;
     ip.full = PC_IP;
     char msg[80];
+	 
     // Prepare screen
     int screen_buf0_size = 0;
     int screen_buf1_size = 0;
@@ -339,17 +340,17 @@ static int show_ip_selection_screen(unsigned int coreinit_handle, unsigned int *
     int noip = 1;
     int result = 0;
     int delay = 0;
-
+	
     while (1)
     {
         // Print message
-        PRINT_TEXT1(24, 1, "-- LOADIINE --");
-        PRINT_TEXT1(0, 5, "1. Press A to install loadiine");
+        PRINT_TEXT2(13, 0, "-- LOADIINE %s FR By Kasai07 --", LOADIINE_VERSION);
+        PRINT_TEXT1(0, 5, "1. Appuyer sur A pour installer loadiine");
 
-        PRINT_TEXT1(0, 11, "2    (optional)");
-        PRINT_TEXT2(0, 12, "%s : %3d.%3d.%3d.%3d", "  a. Server IP", ip.digit[0], ip.digit[1], ip.digit[2], ip.digit[3]);
-        PRINT_TEXT1(0, 13, "  b. Press X to install loadiine with server settings");
-        PRINT_TEXT1(42, 17, "home button to exit ...");
+        PRINT_TEXT1(0, 8, "(options)");
+        PRINT_TEXT2(0, 9, "%s : %3d.%3d.%3d.%3d", "Server IP", ip.digit[0], ip.digit[1], ip.digit[2], ip.digit[3]);
+        PRINT_TEXT1(0, 11, "2. Appuyer sur X pour installer loadiine server");
+        PRINT_TEXT1(42, 17, "Appuyer sur home pour quitter ...");
 
         // Print ip digit selector
         uint8_t x_shift = 17 + 4 * sel_ip;
@@ -377,7 +378,7 @@ static int show_ip_selection_screen(unsigned int coreinit_handle, unsigned int *
             result = 1;
             break;
         }
-        // A Button
+        // x Button
         if (vpad_data.btn_trigger & BUTTON_X){
             *ip_address = ip.full;
             result = 1;
@@ -424,7 +425,7 @@ static int curl_write_data_callback(void *buffer, int size, int nmemb, void *use
         file->alloc_size += 0x20000;
         file->data = file->MEMAllocFromDefaultHeapEx(file->alloc_size, 0x20);
         if(!file->data)
-            OSFatal("Memory allocation failed");
+            OSFatal("Echec d allocation memoire");
     }
 
     memcpy(file->data + file->len, buffer, insize);
@@ -493,7 +494,7 @@ static void curl_thread_callback(int argc, void *argv)
         }
     }
     if(leaddr == (char*)0)
-        OSFatal("URL not found");
+        OSFatal("URL non trouvé");
 
     /* Acquire and setup libcurl */
     unsigned int libcurl_handle;
@@ -507,7 +508,7 @@ static void curl_thread_callback(int argc, void *argv)
 
     void *curl = private_data->curl_easy_init();
     if(!curl) {
-        OSFatal("cURL init failed");
+        OSFatal("Echec de l initialisation");
     }
 
     /* Generate the url address */
@@ -564,7 +565,7 @@ static unsigned int get_section(private_data_t *private_data, unsigned char *dat
         || (ehdr->e_type != ET_EXEC)
         || (ehdr->e_machine != EM_PPC))
     {
-        OSFatal("Invalid elf");
+        OSFatal(".elf Invalide ");
     }
 
     Elf32_Shdr *shdr = (Elf32_Shdr *) (data + ehdr->e_shoff);

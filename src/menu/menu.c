@@ -6,9 +6,8 @@
 #include "../utils/utils.h"
 #include "../utils/xml.h"
 #include "../common/common.h"
-
 /* Utils for the display */
-#define PRINT_TEXT1(x, y, str) { OSScreenPutFontEx(1, x, y, str); }
+#define PRINT_TEXT1(x, y, str) { OSScreenPutFontEx(1, x, y, str);}
 #define PRINT_TEXT2(x, y, _fmt, ...) { __os_snprintf(msg, 80, _fmt, __VA_ARGS__); OSScreenPutFontEx(1, x, y, msg); }
 #define BTN_PRESSED (BUTTON_LEFT | BUTTON_RIGHT | BUTTON_UP | BUTTON_DOWN | BUTTON_A | BUTTON_B | BUTTON_X)
 
@@ -46,8 +45,12 @@ int Menu_Main(int argc, char *argv[]) {
     /* ****************************************************************** */
     uint sysapp_handle;
     OSDynLoad_Acquire("sysapp.rpl", &sysapp_handle);
-
-    void(*_SYSLaunchTitleByPathFromLauncher)(const char* path, int len, int zero) = 0;
+	
+	unsigned int coreinit_handle;
+	OSDynLoad_Acquire("coreinit.rpl", &coreinit_handle);
+	
+   
+	void(*_SYSLaunchTitleByPathFromLauncher)(const char* path, int len, int zero) = 0;
     OSDynLoad_FindExport(sysapp_handle, 0, "_SYSLaunchTitleByPathFromLauncher", &_SYSLaunchTitleByPathFromLauncher);
 
     int(*SYSRelaunchTitle)(uint argc, char* argv) = 0;
@@ -56,6 +59,12 @@ int Menu_Main(int argc, char *argv[]) {
     int(*SYSLaunchMenu)() = 0;
     OSDynLoad_FindExport(sysapp_handle, 0, "SYSLaunchMenu", &SYSLaunchMenu);
 
+	
+	
+	unsigned int (*OSScreenPutPixelEx)(unsigned int bufferNum, unsigned int posX, unsigned int posY, uint32_t color);
+	OSDynLoad_FindExport(coreinit_handle, 0, "OSScreenPutPixelEx", &OSScreenPutPixelEx);
+	
+	
     /* ****************************************************************** */
     /*                 Get SYSRelaunchTitle pointer                       */
     /* ****************************************************************** */
@@ -84,9 +93,14 @@ int Menu_Main(int argc, char *argv[]) {
     /* ****************************************************************** */
 
     // Prepare screen
+
     int screen_buf0_size = 0;
     int screen_buf1_size = 0;
-    uint screen_color = 0; // (r << 24) | (g << 16) | (b << 8) | a;
+	//int fr = 255;
+	//int fg = 255;
+	//int fb = 255;
+	//int fa = 255;
+    uint32_t screen_color = 0;//(fr << 24) | (fg << 16) | (fb << 8) | fa;
 
     // Init screen and screen buffers
     OSScreenInit();
@@ -106,17 +120,17 @@ int Menu_Main(int argc, char *argv[]) {
     // Flip buffers
     OSScreenFlipBuffersEx(0);
     OSScreenFlipBuffersEx(1);
-
     /* ****************************************************************** */
     /*                              Init SDCARD                           */
     /* ****************************************************************** */
-
+	
+	
     int sd_status = 0;
     FSMountSource mountSrc;
     int game_dh = 0;
     int game_count = 0;
     int path_index = 0;
-
+	
     // Create client and cmd block
     FSClient* pClient = (FSClient*)malloc(sizeof(FSClient));
     FSCmdBlock* pCmd = (FSCmdBlock*)malloc(sizeof(FSCmdBlock));
@@ -181,35 +195,88 @@ int Menu_Main(int argc, char *argv[]) {
     int     return_to_home = 0;
     uint8_t ready = 0;
     int     error;
-
+    VPADData vpad_data;
+	uint8_t jeu = 1;
     //*(volatile unsigned int *)0xBD900000 = 0xDEADBEAF;
     //*(volatile unsigned int *)0xBD900004 = 0xDEADBABE;
 
     // sort game name pointers by name case insensitive
     qsort(game_dir, game_count, sizeof(char*), game_name_cmp);
 
-    VPADData vpad_data;
-    VPADRead(0, &vpad_data, 1, &error); //Read initial vpad status
-
+     //Read initial vpad status
+	VPADRead(0, &vpad_data, 1, &error);
     while (1)
     {
         // Refresh screen if needed
-        if (button_pressed) { OSScreenFlipBuffersEx(1); OSScreenClearBufferEx(1, 0); }
-
+        if (button_pressed) { OSScreenFlipBuffersEx(1); OSScreenClearBufferEx(1, 0);jeu = 1;}
+		
         // Read vpad
         VPADRead(0, &vpad_data, 1, &error);
 
-        // Title : "-- LOADINE --"
-        PRINT_TEXT2(20, 1, "-- LOADIINE %s --", LOADIINE_VERSION);
-
+		
         if (!sd_status)
         {
-            // Print sd card status : "sd card not found or cannot be mounted"
+			// Print sd card status : "sd card not found or cannot be mounted"
             PRINT_TEXT1(0, 5, "sd card not found or cannot be mounted");
         }
         else
         {
-            // Compute first game index
+ if(jeu)//si la variable jeu et a 1 sinon si a 0 passe l'affichage
+{
+	int r = 0;//rouge
+	int g = 0;//vert
+	int b = 0;//bleu
+	int a = 255;//alpha ne pas changer la valeur
+	int dir = 17;//saut de l'entete du header TGA				
+	int pjx = 550;//position x de la jaquette 
+	int pjy = 100;//position y de la jaquette
+	int xx = 160;//largeur de la jaquette
+	int yy = 0;//hauteur de la jaquette a changer dans le for
+	int handle = 0;//pointeur sur le fichier
+	char* image = (char*)malloc(FS_MAX_MOUNTPATH_SIZE); //allocation de memoire pour l'adresse de la jaquette
+	
+	__os_snprintf(image, FS_MAX_MOUNTPATH_SIZE, "%s/%s/%s", CHEMIN, game_dir[game_sel], IMGTGA); //imprime l'adresse complete dans le char image
+	char* donnee = (char*)malloc(0x108018);//allocation de memoire pour pour stocker la jaquette la taille de memoire et Y * X * 3
+	 
+	FSOpenFile(pClient, pCmd, image, "rb", &handle, FS_RET_ALL_ERROR);//ouverture du fichier TGA
+		
+		
+		FSReadFile(pClient, pCmd, donnee, 1, 0x108018, handle, 1, FS_RET_ALL_ERROR);//lecture et mise en memoire du TGA
+			
+		//boucle d'affichage de la jaquette
+		for(int i = 225; yy < i; i--)//i = 225 hauteur de la jaquette
+		{
+			for(int j = 0; j < xx; j++)	
+			{
+				if(donnee[16] == 24)//si le tga et en 24bits
+				{
+					b = donnee[dir+=1];
+					g = donnee[dir+=1];
+					r = donnee[dir+=1];
+				}	
+				if(donnee[16] == 32)//si le tga et en 32bits
+				{
+					b = donnee[dir+=1];
+					g = donnee[dir+=1];
+					r = donnee[dir+=1];
+					a = donnee[dir+=1];
+				}
+				uint32_t num = (r << 24) | (g << 16) | (b << 8) | a;
+				//OSScreenPutPixelEx fonction d'affichage des pixels du TGA
+				OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
+				OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
+			}				
+		}
+	
+	
+	FSCloseFile(pClient, pCmd, handle, FS_RET_NO_ERROR);//fermeture du fichier TGA	
+	
+	free(image);//libere la memoire			
+	free(donnee);//libere la memoire
+	jeu = 0; // bloque le reaffichage de la jaquette
+				
+}			
+			// Compute first game index
             uint8_t mid_page = MAX_GAME_ON_PAGE / 2;
             if (game_sel > mid_page)
                 game_index = game_sel - mid_page;
@@ -220,35 +287,36 @@ int Menu_Main(int argc, char *argv[]) {
                 if (game_index > (game_count - mid_page))
                     game_index = (game_count - mid_page);
             }
-
-
             // Print game titles
             for (int i = 0; (i < MAX_GAME_ON_PAGE) && ((game_index + i) < game_count); i++)
             {
-                PRINT_TEXT1(3, 3 + i, &(game_dir[game_index + i])[0]);
-            }
-
+                
+				PRINT_TEXT1(3, 2 + i, &(game_dir[game_index + i])[0]);
+				
+			}
             // Print selector
-            PRINT_TEXT1(0, 3 + game_sel - game_index, "=>");
-
+            PRINT_TEXT1(0, 2 + game_sel - game_index, "=>");	
+			// Title : "-- LOADINE --"
+			PRINT_TEXT1(10, 0, "-- LOADIINE FLOW V1.0 FR By Kasai07 --");
             // Nb games : "%d games :"
-            PRINT_TEXT2(0, 15, "%d games", game_count);
-
+            PRINT_TEXT2(0, 14, "(%d Jeux)", game_count);
             // Print buttons mapping
-            PRINT_TEXT1(0, 16, "Press A for Smash Bros U mode (or Y to return to Home Menu)");
-            PRINT_TEXT1(0, 17, "Press X for Mii Maker mode");
+            PRINT_TEXT1(-3, 15, "Appuyez A pour le mode Smash Bros U (autoboot)" ) ;
+			PRINT_TEXT1(-3, 16, "Appuyez Y pour le mode Smash Bros U et revenir au menu d'accueil" ) ;
+            PRINT_TEXT1(-3, 17, "Appuyez X pour le mode Mii Maker (autoboot) " ) ;
 
             // Check buttons
             if (!button_pressed)
             {
-                if (vpad_data.btn_hold & BUTTON_UP  ) game_sel = (game_sel <= 0) ? game_count - 1 : game_sel - 1;
-                if (vpad_data.btn_hold & BUTTON_DOWN) game_sel = ((game_sel + 1) % game_count);
-
+                if (vpad_data.btn_trigger & BUTTON_UP){game_sel = (game_sel <= 0) ? game_count - 1 : game_sel - 1;}
+				if (vpad_data.btn_trigger & BUTTON_DOWN){game_sel = ((game_sel + 1) % game_count);}
+				
                 // Launch game
                 if ((vpad_data.btn_hold & BUTTON_A) ||
                     (return_to_home = (vpad_data.btn_hold & BUTTON_Y)) ||
                     (mii_maker_mode = (vpad_data.btn_hold & BUTTON_X)))
                 {
+					
                     launching = 1;
 
                     // Create game folder path
@@ -402,7 +470,7 @@ int Menu_Main(int argc, char *argv[]) {
                 }
                 break;
             }
-            PRINT_TEXT1(45, 17, "Can't launch game!");
+            PRINT_TEXT1(10, 14, "Vous ne pouvez pas lancer jeu!");
         }
 
         // Update screen
@@ -415,7 +483,7 @@ int Menu_Main(int argc, char *argv[]) {
         // Button pressed ?
         button_pressed = (vpad_data.btn_hold & BTN_PRESSED) ? 1 : 0;
     }
-
+	
     /* ****************************************************************** */
     /*                            Free Memory                             */
     /* ****************************************************************** */
@@ -491,7 +559,7 @@ static void Add_RPX_RPL_Entry(const char *name, int offset, int size, int is_rpx
     memcpy(rpx_rpl_data->name, name, strnlen(name, 0x1000) + 1);
 
     char acBuffer[200];
-    __os_snprintf(acBuffer, sizeof(acBuffer), "%s: loaded into 0x%08X, offset: 0x%08X, size: 0x%08X", name, area->address, offset, size);
+    __os_snprintf(acBuffer, sizeof(acBuffer), "%s: charger dans 0x%08X, offset: 0x%08X, size: 0x%08X", name, area->address, offset, size);
     log_string(bss.global_sock, acBuffer, BYTE_LOG_STR);
 }
 
@@ -749,7 +817,7 @@ static void GenerateMemoryAreasTable()
 //        {0xB8000000 + 0x01F6779C, 0xB8000000 + 0x01FB77A0}, // 320 kB
 //        {0xB8000000 + 0x01FB78E0, 0xB8000000 + 0x020078E4}, // 320 kB
 //        {0xB8000000 + 0x02007A24, 0xB8000000 + 0x02057A28}, // 320 kB
-//        {0xB8000000 + 0x02057B68, 0xB8000000 + 0x021B957C}, // 1414 kB
+//        {0xB8000000 + 0x02057B68, 0xB8000000 + 0x021B957C},  1414 kB
 //        {0xB8000000 + 0x02891528, 0xB8000000 + 0x028C8A28}, // 221 kB
 //        {0xB8000000 + 0x02BBCC4C, 0xB8000000 + 0x02CB958C}, // 1010 kB
 //        {0xB8000000 + 0x0378D45C, 0xB8000000 + 0x03855464}, // 800 kB
