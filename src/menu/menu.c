@@ -221,61 +221,65 @@ int Menu_Main(int argc, char *argv[]) {
         }
         else
         {
- if(jeu)//si la variable jeu et a 1 sinon si a 0 passe l'affichage
-{
-	int r = 0;//rouge
-	int g = 0;//vert
-	int b = 0;//bleu
-	int a = 255;//alpha ne pas changer la valeur
-	int dir = 17;//saut de l'entete du header TGA				
-	int pjx = 550;//position x de la jaquette 
-	int pjy = 100;//position y de la jaquette
-	int xx = 160;//largeur de la jaquette
-	int yy = 0;//hauteur de la jaquette a changer dans le for
-	int handle = 0;//pointeur sur le fichier
-	char* image = (char*)malloc(FS_MAX_MOUNTPATH_SIZE); //allocation de memoire pour l'adresse de la jaquette
-	
-	__os_snprintf(image, FS_MAX_MOUNTPATH_SIZE, "%s/%s/%s", CHEMIN, game_dir[game_sel], IMGTGA); //imprime l'adresse complete dans le char image
-	char* donnee = (char*)malloc(0x108018);//allocation de memoire pour pour stocker la jaquette la taille de memoire et Y * X * 3
-	 
-	FSOpenFile(pClient, pCmd, image, "rb", &handle, FS_RET_ALL_ERROR);//ouverture du fichier TGA
-		
-		
-		FSReadFile(pClient, pCmd, donnee, 1, 0x108018, handle, 1, FS_RET_ALL_ERROR);//lecture et mise en memoire du TGA
-			
-		//boucle d'affichage de la jaquette
-		for(int i = 225; yy < i; i--)//i = 225 hauteur de la jaquette
-		{
-			for(int j = 0; j < xx; j++)	
+			if(jeu)//si la variable jeu et a 1 sinon si a 0 passe l'affichage
 			{
-				if(donnee[16] == 24)//si le tga et en 24bits
-				{
-					b = donnee[dir+=1];
-					g = donnee[dir+=1];
-					r = donnee[dir+=1];
-				}	
-				if(donnee[16] == 32)//si le tga et en 32bits
-				{
-					b = donnee[dir+=1];
-					g = donnee[dir+=1];
-					r = donnee[dir+=1];
-					a = donnee[dir+=1];
-				}
-				uint32_t num = (r << 24) | (g << 16) | (b << 8) | a;
-				//OSScreenPutPixelEx fonction d'affichage des pixels du TGA
-				OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
-				OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
-			}				
-		}
-	
-	
-	FSCloseFile(pClient, pCmd, handle, FS_RET_NO_ERROR);//fermeture du fichier TGA	
-	
-	free(image);//libere la memoire			
-	free(donnee);//libere la memoire
-	jeu = 0; // bloque le reaffichage de la jaquette
 				
-}			
+				int r = 0;//rouge
+				int g = 0;//vert
+				int b = 0;//bleu
+				int a = 255;//alpha ne pas changer la valeur
+				int dir = 17;//saut de l'entete du header TGA				
+				int pjx = 550;//position x de la jaquette 
+				int pjy = 100;//position y de la jaquette
+				int xx = 160;//largeur de la jaquette
+				int yy = 0;//hauteur de la jaquette a changer dans le for
+				int handle = 0;//pointeur sur le fichier
+				
+				char* image = (char*)malloc(FS_MAX_MOUNTPATH_SIZE); //allocation de memoire pour l'adresse de la jaquette
+				__os_snprintf(image, FS_MAX_MOUNTPATH_SIZE, "%s/%s/%s", CHEMIN, game_dir[game_sel], IMGTGA); //imprime l'adresse complete dans le char image
+				
+				if (FSOpenFile(pClient, pCmd, image, "rb", &handle, FS_RET_ALL_ERROR) == FS_STATUS_OK)
+				{
+					
+					char* donnee = (char*)malloc(0x108018);//allocation de memoire pour pour stocker la jaquette la taille de memoire et Y * X * 3
+					
+					FSReadFile(pClient, pCmd, donnee, 1, 0x108018, handle, 1, FS_RET_ALL_ERROR);//lecture et mise en memoire du TGA
+					
+					//boucle d'affichage de la jaquette
+					for(int i = 225; yy < i; i--)//i = 225 hauteur de la jaquette
+					{
+						for(int j = 0; j < xx; j++)	
+						{
+							if(donnee[16] == 24)//si le tga et en 24bits
+							{
+								b = donnee[dir+=1];
+								g = donnee[dir+=1];
+								r = donnee[dir+=1];
+							}	
+							if(donnee[16] == 32)//si le tga et en 32bits
+							{
+								b = donnee[dir+=1];
+								g = donnee[dir+=1];
+								r = donnee[dir+=1];
+								a = donnee[dir+=1];
+							}
+							uint32_t num = (r << 24) | (g << 16) | (b << 8) | a;
+							//OSScreenPutPixelEx fonction d'affichage des pixels du TGA
+							OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
+							OSScreenPutPixelEx(1,pjx+j,pjy+i,num);
+						}				
+					}
+					
+					FSCloseFile(pClient, pCmd, handle, FS_RET_NO_ERROR);//fermeture du fichier TGA	
+
+					free(donnee);//libere la memoire
+					 
+				}
+				
+				free(image);//libere la memoire
+				jeu = 0;// bloque le reaffichage de la jaquette
+			}
+			
 			// Compute first game index
             uint8_t mid_page = MAX_GAME_ON_PAGE / 2;
             if (game_sel > mid_page)
